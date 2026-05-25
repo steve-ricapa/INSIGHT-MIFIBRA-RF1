@@ -27,7 +27,7 @@ def test_cli_once_smoke_real_server(monkeypatch, tmp_path: Path, insightvm_test_
     monkeypatch.setattr("sys.argv", ["insightvm-pull", "--env-file", str(env_file), "--once"])
     cli.main()
     files = sorted((tmp_path / "payloads").glob("*.json"))
-    assert len(files) == 3
+    assert len(files) == 4
     filtered = [p for p in files if p.name.startswith("filtered_")][0]
     filtered_data = json.loads(filtered.read_text(encoding="utf-8"))
     assert filtered_data["meta"]["allowed_severities"] == ["critical", "high"]

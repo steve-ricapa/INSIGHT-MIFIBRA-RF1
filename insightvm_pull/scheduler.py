@@ -54,7 +54,14 @@ def run_service(settings: Settings, collector: InsightVMCollector, once: bool = 
             "max_retries": settings.max_retries,
         }
         paths = persist_cycle_payloads(settings.payload_dir, raw_payload, filtered_payload, run_meta)
-        log.info("cycle=%s persisted raw=%s filtered=%s meta=%s", cycle, paths["raw"], paths["filtered"], paths["meta"])
+        log.info(
+            "cycle=%s persisted raw_api=%s mapped=%s filtered=%s meta=%s",
+            cycle,
+            paths["raw_api"],
+            paths["mapped"],
+            paths["filtered"],
+            paths["meta"],
+        )
 
         if once:
             return

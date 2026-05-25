@@ -21,13 +21,13 @@ copy .env.example .env
 4. Ejecutar una sola corrida (prueba manual):
 
 ```bash
-py -m insightvm_pull.cli --env-file .env --once
+py main.py --env-file .env --once
 ```
 
 5. Ejecutar en modo continuo (default cada 1 hora):
 
 ```bash
-py -m insightvm_pull.cli --env-file .env
+py main.py --env-file .env
 ```
 
 ## Dónde ver logs y payloads
@@ -35,9 +35,35 @@ py -m insightvm_pull.cli --env-file .env
 - Logs en consola: siempre durante la ejecución.
 - Log en archivo (por defecto): `logs/integration.log`.
 - Payloads descargados (por defecto): carpeta `payloads/`.
-  - `raw_YYYYmmdd_HHMMSS.json`
+  - `raw_api_YYYYmmdd_HHMMSS.json`
+  - `mapped_YYYYmmdd_HHMMSS.json`
   - `filtered_YYYYmmdd_HHMMSS.json`
   - `run_YYYYmmdd_HHMMSS.meta.json`
+
+## Dos formas de datos (raw vs mapeado)
+
+La integración guarda dos vistas de la data:
+
+1. `raw 1:1` (crudo real de API)
+- Está en `raw_api_*.json`.
+- Es la respuesta original de InsightVM, sin transformación funcional:
+  - `assets_pages` -> páginas crudas de `GET /assets`
+  - `asset_vulnerabilities` -> respuesta cruda por asset de `GET /assets/{id}/vulnerabilities`
+  - `vulnerability_definitions` -> respuesta cruda por vulnerabilidad de `GET /vulnerabilities/{id}`
+- Uso: auditoría, troubleshooting y comparación contra mapeo.
+
+2. `mapeado/operativo` (el flujo con el que trabajamos)
+- Está en `mapped_*.json`:
+  - `assets`
+  - `findings`
+  - `meta`
+- Es la data ya normalizada por nuestra lógica para operación.
+- Luego de ese mapeo se genera `filtered_*.json` con severidades configuradas (`ALERT_SEVERITIES`, por defecto `critical,high`).
+
+Resumen práctico:
+- `raw_api_*.json` = verdad cruda 1:1 de InsightVM.
+- `mapped_*.json` = versión mapeada funcional para trabajar.
+- `filtered` = versión final operativa (altas/críticas por defecto).
 
 Puedes cambiar rutas con:
 - `LOG_FILE` en `.env` o `--log-file`
@@ -66,19 +92,19 @@ Variables clave en `.env`:
 Ejecutar cada 30 minutos:
 
 ```bash
-py -m insightvm_pull.cli --env-file .env --interval-seconds 1800
+py main.py --env-file .env --interval-seconds 1800
 ```
 
 Solo severidades críticas:
 
 ```bash
-py -m insightvm_pull.cli --env-file .env --severities critical
+py main.py --env-file .env --severities critical
 ```
 
 Cambiar carpeta de payloads:
 
 ```bash
-py -m insightvm_pull.cli --env-file .env --payload-dir C:\tmp\ivm_payloads
+py main.py --env-file .env --payload-dir C:\tmp\ivm_payloads
 ```
 
 ## Tests
@@ -98,6 +124,4 @@ py -m pytest -vv -s --log-cli-level=INFO
 ## Notas
 
 - Al iniciar, la integración muestra un banner ASCII de InsightVM en logs.
-- `pyproject.toml` se mantiene porque define el proyecto y el comando CLI de forma estándar moderna.
-- `requirements.txt` también se mantiene para instalación rápida tradicional.
-
+- `requirements.txt` se mantiene como instalación rápida tradicional.

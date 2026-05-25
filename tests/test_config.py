@@ -19,7 +19,5 @@ def test_invalid_severity(monkeypatch):
     monkeypatch.setenv("INSIGHTVM_BASE_URL", "https://example/api/3")
     monkeypatch.setenv("INSIGHTVM_USER", "u")
     monkeypatch.setenv("INSIGHTVM_PASSWORD", "p")
-    monkeypatch.setenv("ALERT_SEVERITIES", "critical,bad")
     with pytest.raises(ValueError):
-        load_settings(overrides={})
-
+        load_settings(env_file=".env.missing", overrides={"severities": "critical,bad"})
