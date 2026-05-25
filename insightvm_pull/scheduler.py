@@ -5,6 +5,7 @@ import time
 from datetime import datetime, timezone
 from typing import Any
 
+from insightvm_pull.backend_client import BackendAlarmClient
 from insightvm_pull.collector import InsightVMCollector, filter_payload_by_severity
 from insightvm_pull.config import Settings
 from insightvm_pull.storage import persist_cycle_payloads
@@ -41,6 +42,19 @@ def run_service(settings: Settings, collector: InsightVMCollector, once: bool = 
                     time.sleep(sleep_seconds)
 
         elapsed = round(time.monotonic() - started, 3)
+        backend_result: dict[str, Any] = {"enabled": settings.backend_enabled}
+        if success and settings.backend_enabled:
+            backend_client = BackendAlarmClient(settings=settings)
+            backend_result = backend_client.send_filtered_findings(filtered_payload)
+            log.info(
+                "cycle=%s backend sent_ok=%s conflicts=%s validation_errors=%s backend_errors=%s",
+                cycle,
+                backend_result.get("sent_ok", 0),
+                backend_result.get("conflicts", 0),
+                backend_result.get("validation_errors", 0),
+                backend_result.get("backend_errors", 0),
+            )
+
         run_meta = {
             "cycle": cycle,
             "started_at": cycle_time,
@@ -52,13 +66,13 @@ def run_service(settings: Settings, collector: InsightVMCollector, once: bool = 
             "allowed_severities": list(settings.severities),
             "duration_seconds": elapsed,
             "max_retries": settings.max_retries,
+            "backend": backend_result,
         }
         paths = persist_cycle_payloads(settings.payload_dir, raw_payload, filtered_payload, run_meta)
         log.info(
-            "cycle=%s persisted raw_api=%s mapped=%s filtered=%s meta=%s",
+            "cycle=%s persisted raw_api=%s filtered=%s meta=%s",
             cycle,
             paths["raw_api"],
-            paths["mapped"],
             paths["filtered"],
             paths["meta"],
         )

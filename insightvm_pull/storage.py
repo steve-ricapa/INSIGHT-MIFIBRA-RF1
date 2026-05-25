@@ -20,24 +20,16 @@ def persist_cycle_payloads(payload_dir: str, raw_payload: dict[str, Any], filter
     base = Path(payload_dir)
     stamp = utc_stamp()
     raw_api_path = base / f"raw_api_{stamp}.json"
-    mapped_path = base / f"mapped_{stamp}.json"
     filtered_path = base / f"filtered_{stamp}.json"
     meta_path = base / f"run_{stamp}.meta.json"
 
     raw_api_payload = raw_payload.get("raw_api", {})
-    mapped_payload = {
-        "assets": raw_payload.get("assets", []),
-        "findings": raw_payload.get("findings", []),
-        "meta": raw_payload.get("meta", {}),
-    }
 
     write_json(raw_api_path, raw_api_payload if isinstance(raw_api_payload, dict) else {})
-    write_json(mapped_path, mapped_payload)
     write_json(filtered_path, filtered_payload)
     write_json(meta_path, run_meta)
     return {
         "raw_api": str(raw_api_path),
-        "mapped": str(mapped_path),
         "filtered": str(filtered_path),
         "meta": str(meta_path),
     }

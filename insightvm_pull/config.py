@@ -42,6 +42,12 @@ class Settings:
     log_level: str
     log_file: str
     payload_dir: str
+    backend_enabled: bool
+    backend_url: str
+    backend_local: str
+    backend_alarm_type: str
+    backend_timeout: int
+    backend_verify_ssl: bool
 
 
 def load_settings(env_file: str = ".env", overrides: dict | None = None) -> Settings:
@@ -61,6 +67,12 @@ def load_settings(env_file: str = ".env", overrides: dict | None = None) -> Sett
     log_level = str(ov.get("log_level") or os.getenv("LOG_LEVEL", "INFO")).upper()
     log_file = str(ov.get("log_file") or os.getenv("LOG_FILE", "logs/integration.log"))
     payload_dir = str(ov.get("payload_dir") or os.getenv("PAYLOAD_DIR", "payloads"))
+    backend_enabled = _truthy(str(ov.get("backend_enabled")) if ov.get("backend_enabled") is not None else os.getenv("BACKEND_ENABLED"), False)
+    backend_url = str(ov.get("backend_url") or os.getenv("BACKEND_URL", "https://10.208.232.208/txdxsecure/guarda_alarma.php")).strip()
+    backend_local = str(ov.get("backend_local") or os.getenv("BACKEND_LOCAL", "Txdxsecure")).strip()
+    backend_alarm_type = str(ov.get("backend_alarm_type") or os.getenv("BACKEND_ALARM_TYPE", "1 - Alarma de seguridad")).strip()
+    backend_timeout = int(ov.get("backend_timeout") or os.getenv("BACKEND_TIMEOUT", "30"))
+    backend_verify_ssl = _truthy(str(ov.get("backend_verify_ssl")) if ov.get("backend_verify_ssl") is not None else os.getenv("BACKEND_VERIFY_SSL"), False)
 
     if not base_url:
         raise ValueError("INSIGHTVM_BASE_URL is required.")
@@ -72,6 +84,8 @@ def load_settings(env_file: str = ".env", overrides: dict | None = None) -> Sett
         raise ValueError("MAX_RETRIES must be >= 1.")
     if page_size < 1:
         raise ValueError("PAGE_SIZE must be >= 1.")
+    if backend_enabled and not backend_url:
+        raise ValueError("BACKEND_URL is required when BACKEND_ENABLED=true.")
 
     return Settings(
         insightvm_base_url=base_url,
@@ -87,5 +101,10 @@ def load_settings(env_file: str = ".env", overrides: dict | None = None) -> Sett
         log_level=log_level,
         log_file=log_file,
         payload_dir=payload_dir,
+        backend_enabled=backend_enabled,
+        backend_url=backend_url,
+        backend_local=backend_local,
+        backend_alarm_type=backend_alarm_type,
+        backend_timeout=backend_timeout,
+        backend_verify_ssl=backend_verify_ssl,
     )
-

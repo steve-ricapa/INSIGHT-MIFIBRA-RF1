@@ -21,6 +21,12 @@ def _settings(base_url: str) -> Settings:
         log_level="INFO",
         log_file="logs/test.log",
         payload_dir="payloads",
+        backend_enabled=False,
+        backend_url="http://127.0.0.1:9999/txdxsecure/guarda_alarma.php",
+        backend_local="Txdxsecure",
+        backend_alarm_type="1 - Alarma de seguridad",
+        backend_timeout=5,
+        backend_verify_ssl=False,
     )
 
 
@@ -37,4 +43,3 @@ def test_client_http_error_real_server(insightvm_test_server):
     client = InsightVMClient(settings=_settings(server["base_url"]))
     with pytest.raises(RuntimeError):
         list(client.get_paged("/assets", size=1))
-

@@ -26,26 +26,29 @@ def test_run_service_retries_and_persists_real_server(tmp_path: Path, insightvm_
         log_level="INFO",
         log_file=str(tmp_path / "logs" / "integration.log"),
         payload_dir=str(tmp_path / "payloads"),
+        backend_enabled=False,
+        backend_url="http://127.0.0.1:9999/txdxsecure/guarda_alarma.php",
+        backend_local="Txdxsecure",
+        backend_alarm_type="1 - Alarma de seguridad",
+        backend_timeout=5,
+        backend_verify_ssl=False,
     )
     collector = InsightVMCollector(client=InsightVMClient(settings=settings))
     run_service(settings=settings, collector=collector, once=True)
 
     payload_files = sorted((tmp_path / "payloads").glob("*.json"))
-    assert len(payload_files) == 4
+    assert len(payload_files) == 3
     raw_api_file = [p for p in payload_files if p.name.startswith("raw_api_")][0]
-    mapped_file = [p for p in payload_files if p.name.startswith("mapped_")][0]
     filtered_file = [p for p in payload_files if p.name.startswith("filtered_")][0]
     meta_file = [p for p in payload_files if p.name.startswith("run_")][0]
 
     raw_api_data = json.loads(raw_api_file.read_text(encoding="utf-8"))
-    mapped_data = json.loads(mapped_file.read_text(encoding="utf-8"))
     filtered_data = json.loads(filtered_file.read_text(encoding="utf-8"))
     meta_data = json.loads(meta_file.read_text(encoding="utf-8"))
 
     assert "assets_pages" in raw_api_data
     assert "asset_vulnerabilities" in raw_api_data
     assert "vulnerability_definitions" in raw_api_data
-    assert mapped_data["meta"]["findings_count"] == 2
     assert filtered_data["meta"]["findings_count"] == 1
     assert meta_data["success"] is True
     assert server["state"].assets_calls >= 2

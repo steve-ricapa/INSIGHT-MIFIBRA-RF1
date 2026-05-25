@@ -1,8 +1,8 @@
 # InsightVM Pull Integration
 
-Integración para descargar alertas de InsightVM por estrategia `pull`, con ejecución continua, filtro por severidad, reintentos y logs detallados.
+Integración para descargar alertas de InsightVM por estrategia `pull`, con snapshot por ejecución, filtros de severidad, reintentos y logs.
 
-## Inicio rápido
+## Inicio rápido (lo principal)
 
 1. Instalar dependencias:
 
@@ -10,118 +10,92 @@ Integración para descargar alertas de InsightVM por estrategia `pull`, con ejec
 py -m pip install -r requirements.txt
 ```
 
-2. Crear archivo de entorno:
-
-```bash
-copy .env.example .env
-```
-
-3. Editar `.env` con tus credenciales y URL reales de InsightVM.
-
-4. Ejecutar una sola corrida (prueba manual):
+2. Ejecutar una sola corrida (snapshot):
 
 ```bash
 py main.py --env-file .env --once
 ```
 
-5. Ejecutar en modo continuo (default cada 1 hora):
-
-```bash
-py main.py --env-file .env
-```
-
-## Dónde ver logs y payloads
-
-- Logs en consola: siempre durante la ejecución.
-- Log en archivo (por defecto): `logs/integration.log`.
-- Payloads descargados (por defecto): carpeta `payloads/`.
-  - `raw_api_YYYYmmdd_HHMMSS.json`
-  - `mapped_YYYYmmdd_HHMMSS.json`
-  - `filtered_YYYYmmdd_HHMMSS.json`
-  - `run_YYYYmmdd_HHMMSS.meta.json`
-
-## Dos formas de datos (raw vs mapeado)
-
-La integración guarda dos vistas de la data:
-
-1. `raw 1:1` (crudo real de API)
-- Está en `raw_api_*.json`.
-- Es la respuesta original de InsightVM, sin transformación funcional:
-  - `assets_pages` -> páginas crudas de `GET /assets`
-  - `asset_vulnerabilities` -> respuesta cruda por asset de `GET /assets/{id}/vulnerabilities`
-  - `vulnerability_definitions` -> respuesta cruda por vulnerabilidad de `GET /vulnerabilities/{id}`
-- Uso: auditoría, troubleshooting y comparación contra mapeo.
-
-2. `mapeado/operativo` (el flujo con el que trabajamos)
-- Está en `mapped_*.json`:
-  - `assets`
-  - `findings`
-  - `meta`
-- Es la data ya normalizada por nuestra lógica para operación.
-- Luego de ese mapeo se genera `filtered_*.json` con severidades configuradas (`ALERT_SEVERITIES`, por defecto `critical,high`).
-
-Resumen práctico:
-- `raw_api_*.json` = verdad cruda 1:1 de InsightVM.
-- `mapped_*.json` = versión mapeada funcional para trabajar.
-- `filtered` = versión final operativa (altas/críticas por defecto).
-
-Puedes cambiar rutas con:
-- `LOG_FILE` en `.env` o `--log-file`
-- `PAYLOAD_DIR` en `.env` o `--payload-dir`
-
-## Configuración principal
-
-Variables clave en `.env`:
-
-- `INSIGHTVM_BASE_URL`: URL API InsightVM (ejemplo: `https://host:3780/api/3`)
-- `INSIGHTVM_USER`: usuario
-- `INSIGHTVM_PASSWORD`: contraseña
-- `INSIGHTVM_TIMEOUT`: timeout por request (segundos)
-- `INSIGHTVM_VERIFY_SSL`: `true` o `false`
-- `PULL_INTERVAL_SECONDS`: intervalo entre ciclos (`3600` = 1 hora)
-- `PAGE_SIZE`: tamaño de página de API
-- `MAX_RETRIES`: reintentos por ciclo
-- `RETRY_BACKOFF_SECONDS`: base del backoff exponencial
-- `ALERT_SEVERITIES`: severidades permitidas en payload filtrado
-- `LOG_LEVEL`: `DEBUG|INFO|WARNING|ERROR`
-- `LOG_FILE`: ruta del log
-- `PAYLOAD_DIR`: carpeta de salida de payloads
-
-## Ejemplos útiles
-
-Ejecutar cada 30 minutos:
-
-```bash
-py main.py --env-file .env --interval-seconds 1800
-```
-
-Solo severidades críticas:
-
-```bash
-py main.py --env-file .env --severities critical
-```
-
-Cambiar carpeta de payloads:
-
-```bash
-py main.py --env-file .env --payload-dir C:\tmp\ivm_payloads
-```
-
-## Tests
-
-Ejecutar suite:
+3. Ejecutar tests:
 
 ```bash
 py -m pytest -q
 ```
 
-Con detalle:
+## Dónde ver resultados
+
+- Logs:
+  - Consola (durante ejecución)
+  - Archivo: `logs/integration.log`
+
+- Payloads (en `payloads/`):
+  - `raw_api_YYYYmmdd_HHMMSS.json` -> data cruda 1:1 desde API InsightVM.
+  - `filtered_YYYYmmdd_HHMMSS.json` -> data filtrada por severidad (por defecto `critical,high`).
+  - `run_YYYYmmdd_HHMMSS.meta.json` -> metadatos del ciclo (éxito/error, tiempos, conteos).
+
+## Flujo funcional
+
+1. Baja data desde InsightVM (`/assets`, `/assets/{id}/vulnerabilities`, `/vulnerabilities/{id}`).
+2. Guarda crudo 1:1 en `raw_api`.
+3. Aplica filtro de severidad y guarda resultado operativo en `filtered`.
+4. Si `BACKEND_ENABLED=true`, adapta la data filtrada al formato requerido y la envía al backend (`guarda_alarma.php`).
+   Solo se envían hallazgos de severidades configuradas en `ALERT_SEVERITIES` (por defecto: `critical,high`).
+
+## Ejecución continua
+
+Modo servicio (intervalo por defecto: 1 hora):
 
 ```bash
-py -m pytest -vv -s --log-cli-level=INFO
+py main.py --env-file .env
 ```
 
-## Notas
+Override de intervalo (ej. 30 min):
 
-- Al iniciar, la integración muestra un banner ASCII de InsightVM en logs.
-- `requirements.txt` se mantiene como instalación rápida tradicional.
+```bash
+py main.py --env-file .env --interval-seconds 1800
+```
+
+## Configuración principal (`.env`)
+
+- `INSIGHTVM_BASE_URL`
+- `INSIGHTVM_USER`
+- `INSIGHTVM_PASSWORD`
+- `INSIGHTVM_TIMEOUT`
+- `INSIGHTVM_VERIFY_SSL`
+- `PULL_INTERVAL_SECONDS`
+- `PAGE_SIZE`
+- `MAX_RETRIES`
+- `RETRY_BACKOFF_SECONDS`
+- `ALERT_SEVERITIES`
+- `LOG_LEVEL`
+- `LOG_FILE`
+- `PAYLOAD_DIR`
+- `BACKEND_ENABLED` (true/false)
+- `BACKEND_URL` (ej: `https://10.208.232.208/txdxsecure/guarda_alarma.php`)
+- `BACKEND_LOCAL`
+- `BACKEND_ALARM_TYPE`
+- `BACKEND_TIMEOUT`
+- `BACKEND_VERIFY_SSL`
+
+Referencia completa: [\.env.example](C:\Users\diego\PROYECTOS\INSIGHT-MIFIBRA\.env.example)
+
+## Integración backend (respuestas esperadas)
+
+La integración envía JSON por `POST` con estos campos:
+- `servidor`
+- `ip`
+- `TipoAlarma`
+- `Local`
+- `fechaalarma`
+
+Respuestas que maneja:
+- Éxito: `{"success": true}`
+- Error de campos: `{"success": false, "message": "Campos requeridos faltantes: ..."}`
+- Conflicto: `{"success": false, "message": "Ya existe un registro activo ..."}`
+- Error BD/general: `{"success": false, "message": "Error en la base de datos"}`
+
+El detalle del envío se registra en `run_*.meta.json` bajo la clave `backend`:
+- `sent_ok`
+- `conflicts`
+- `validation_errors`
+- `backend_errors`
