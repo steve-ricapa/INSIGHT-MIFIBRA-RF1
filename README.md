@@ -4,22 +4,36 @@ Integración para descargar alertas de InsightVM por estrategia `pull`, con snap
 
 ## Inicio rápido (lo principal)
 
-1. Instalar dependencias:
+1. Crear y activar entorno virtual:
 
 ```bash
-py -m pip install -r requirements.txt
+python3 -m venv venv
+source venv/bin/activate
 ```
 
-2. Ejecutar una sola corrida (snapshot):
+2. Instalar dependencias:
 
 ```bash
-py main.py --env-file .env --once
+pip install -r requirements.txt
 ```
 
-3. Ejecutar tests:
+3. Configurar variables de entorno:
 
 ```bash
-py -m pytest -q
+cp .env.example .env
+nano .env   # editar con tus credenciales
+```
+
+4. Ejecutar una sola corrida (snapshot):
+
+```bash
+python3 main.py --env-file .env --once
+```
+
+5. Ejecutar tests:
+
+```bash
+python3 -m pytest -q
 ```
 
 ## Dónde ver resultados
@@ -46,13 +60,55 @@ py -m pytest -q
 Modo servicio (intervalo por defecto: 1 hora):
 
 ```bash
-py main.py --env-file .env
+python3 main.py --env-file .env
 ```
 
 Override de intervalo (ej. 30 min):
 
 ```bash
-py main.py --env-file .env --interval-seconds 1800
+python3 main.py --env-file .env --interval-seconds 1800
+```
+
+### Ejecutar en background con nohup
+
+```bash
+nohup python3 main.py --env-file .env > /dev/null 2>&1 &
+```
+
+### Ejecutar con systemd (recomendado para producción)
+
+Crear el archivo de servicio:
+
+```bash
+sudo nano /etc/systemd/system/insightvm-pull.service
+```
+
+Contenido:
+
+```ini
+[Unit]
+Description=InsightVM Pull Integration
+After=network.target
+
+[Service]
+Type=simple
+User=<tu-usuario>
+WorkingDirectory=/ruta/al/proyecto/INSIGHT-MIFIBRA-RF1
+ExecStart=/ruta/al/proyecto/INSIGHT-MIFIBRA-RF1/venv/bin/python3 main.py --env-file .env
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Habilitar y arrancar:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable insightvm-pull
+sudo systemctl start insightvm-pull
+sudo systemctl status insightvm-pull
 ```
 
 ## Configuración principal (`.env`)
@@ -77,7 +133,7 @@ py main.py --env-file .env --interval-seconds 1800
 - `BACKEND_TIMEOUT`
 - `BACKEND_VERIFY_SSL`
 
-Referencia completa: [\.env.example](C:\Users\diego\PROYECTOS\INSIGHT-MIFIBRA\.env.example)
+Referencia completa: [.env.example](.env.example)
 
 ## Integración backend (respuestas esperadas)
 
