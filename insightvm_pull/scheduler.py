@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from insightvm_pull.backend_client import BackendAlarmClient
+from insightvm_pull.client import InsightVMAuthError
 from insightvm_pull.collector import InsightVMCollector, filter_payload_by_severity
 from insightvm_pull.config import Settings
 from insightvm_pull.storage import persist_cycle_payloads
@@ -32,6 +33,10 @@ def run_service(settings: Settings, collector: InsightVMCollector, once: bool = 
                 filtered_payload = filter_payload_by_severity(raw_payload, settings.severities)
                 success = True
                 log.info("cycle=%s attempt=%s status=success", cycle, attempt)
+                break
+            except InsightVMAuthError as exc:
+                last_error = str(exc)
+                log.error("cycle=%s attempt=%s status=fatal_auth_error error=%s", cycle, attempt, exc)
                 break
             except Exception as exc:
                 last_error = str(exc)

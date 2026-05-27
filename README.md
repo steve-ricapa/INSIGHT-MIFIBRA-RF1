@@ -55,6 +55,37 @@ python3 -m pytest -q
 4. Si `BACKEND_ENABLED=true`, adapta la data filtrada al formato requerido y la envía al backend (`guarda_alarma.php`).
    Solo se envían hallazgos de severidades configuradas en `ALERT_SEVERITIES` (por defecto: `critical,high`).
 
+## Flujo de endpoints InsightVM
+
+```txt
+┌────────────────────────────┐
+│ 1. GET /assets             │
+│ Obtiene equipos            │
+│ asset_id + metadata        │
+└──────────────┬─────────────┘
+               │ usa asset_id
+               ▼
+┌────────────────────────────────────────────┐
+│ 2. GET /assets/{asset_id}/vulnerabilities │
+│ Obtiene vulnerabilidades por equipo        │
+│ devuelve vulnerability_id                  │
+└──────────────┬─────────────────────────────┘
+               │ usa vulnerability_id
+               ▼
+┌──────────────────────────────────────────────┐
+│ 3. GET /vulnerabilities/{vulnerability_id}   │
+│ Obtiene detalle de vulnerabilidad            │
+│ severity, CVSS, risk score, título, etc.     │
+└──────────────┬───────────────────────────────┘
+               │ normalizar y filtrar
+               ▼
+┌────────────────────────────┐
+│ 4. POST API MiFIbra        │
+│ Envía payload Nivel 1      │
+│ guarda alerta en BD/NOC    │
+└────────────────────────────┘
+```
+
 ## Ejecución continua
 
 Modo servicio (intervalo por defecto: 1 hora):
@@ -132,17 +163,41 @@ sudo systemctl status insightvm-pull
 - `BACKEND_ALARM_TYPE`
 - `BACKEND_TIMEOUT`
 - `BACKEND_VERIFY_SSL`
+- `BACKEND_PAYLOAD_LEVEL` (basic/level1 - determina el nivel de detalle enviado)
 
 Referencia completa: [.env.example](.env.example)
 
-## Integración backend (respuestas esperadas)
+## Normalización de Severidad Interna
 
-La integración envía JSON por `POST` con estos campos:
-- `servidor`
-- `ip`
-- `TipoAlarma`
-- `Local`
-- `fechaalarma`
+El script normaliza automáticamente los niveles de severidad devueltos por InsightVM al estándar del backend:
+- `Severe` -> `high`
+- `Moderate` -> `medium`
+- `Informational` -> `info`
+
+## Integración backend (Nivel 1)
+
+El script soporta dos niveles de payload a través de `BACKEND_PAYLOAD_LEVEL`:
+
+### Modo `basic`
+Envía únicamente el conjunto básico de 5 campos (útil si el backend aún no acepta campos adicionales):
+* `servidor`
+* `ip`
+* `TipoAlarma`
+* `Local`
+* `fechaalarma`
+
+### Modo `level1` (Recomendado / Defecto)
+Envía los campos básicos junto al estándar del **Nivel 1**:
+* `estado` (por defecto `0`)
+* `asset_id`
+* `vulnerability_id`
+* `vulnerability_title`
+* `severity`
+* `cvss_score`
+* `source` (fijo `"InsightVM"`)
+
+> [!NOTE]
+> **El Nivel 1 no incluye soluciones (`solution`).** Toda la información de remedición y soluciones queda explícitamente reservada para el estándar del **Nivel 2**.
 
 Respuestas que maneja:
 - Éxito: `{"success": true}`

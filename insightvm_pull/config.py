@@ -48,6 +48,7 @@ class Settings:
     backend_alarm_type: str
     backend_timeout: int
     backend_verify_ssl: bool
+    backend_payload_level: str
 
 
 def load_settings(env_file: str = ".env", overrides: dict | None = None) -> Settings:
@@ -73,6 +74,7 @@ def load_settings(env_file: str = ".env", overrides: dict | None = None) -> Sett
     backend_alarm_type = str(ov.get("backend_alarm_type") or os.getenv("BACKEND_ALARM_TYPE", "1 - Alarma de seguridad")).strip()
     backend_timeout = int(ov.get("backend_timeout") or os.getenv("BACKEND_TIMEOUT", "30"))
     backend_verify_ssl = _truthy(str(ov.get("backend_verify_ssl")) if ov.get("backend_verify_ssl") is not None else os.getenv("BACKEND_VERIFY_SSL"), False)
+    backend_payload_level = str(ov.get("backend_payload_level") or os.getenv("BACKEND_PAYLOAD_LEVEL", "level1")).strip().lower()
 
     if not base_url:
         raise ValueError("INSIGHTVM_BASE_URL is required.")
@@ -86,6 +88,8 @@ def load_settings(env_file: str = ".env", overrides: dict | None = None) -> Sett
         raise ValueError("PAGE_SIZE must be >= 1.")
     if backend_enabled and not backend_url:
         raise ValueError("BACKEND_URL is required when BACKEND_ENABLED=true.")
+    if backend_payload_level not in {"basic", "level1"}:
+        raise ValueError("BACKEND_PAYLOAD_LEVEL must be 'basic' or 'level1'.")
 
     return Settings(
         insightvm_base_url=base_url,
@@ -107,4 +111,5 @@ def load_settings(env_file: str = ".env", overrides: dict | None = None) -> Sett
         backend_alarm_type=backend_alarm_type,
         backend_timeout=backend_timeout,
         backend_verify_ssl=backend_verify_ssl,
+        backend_payload_level=backend_payload_level,
     )

@@ -12,6 +12,16 @@ from insightvm_pull.config import Settings
 log = logging.getLogger("insightvm_pull.client")
 
 
+class InsightVMError(Exception):
+    """Clase base para errores de la API de InsightVM."""
+    pass
+
+
+class InsightVMAuthError(InsightVMError):
+    """Excepción para errores de autenticación o autorización (401, 403)."""
+    pass
+
+
 class InsightVMClient:
     def __init__(self, settings: Settings, session: requests.Session | None = None) -> None:
         self.settings = settings
@@ -40,6 +50,8 @@ class InsightVMClient:
             verify=self.settings.insightvm_verify_ssl,
         )
         if response.status_code >= 400:
+            if response.status_code in (401, 403):
+                raise InsightVMAuthError(f"InsightVM HTTP {response.status_code} on {endpoint}: {response.text[:300]}")
             raise RuntimeError(f"InsightVM HTTP {response.status_code} on {endpoint}: {response.text[:300]}")
         try:
             data = response.json()

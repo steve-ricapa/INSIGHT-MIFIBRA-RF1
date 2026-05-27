@@ -27,6 +27,7 @@ def _settings(base_url: str) -> Settings:
         backend_alarm_type="1 - Alarma de seguridad",
         backend_timeout=5,
         backend_verify_ssl=False,
+        backend_payload_level="level1",
     )
 
 

@@ -64,16 +64,49 @@ class BackendAlarmClient:
             return None
 
         sev = str(finding.get("severity") or "").lower()
-        title = str(finding.get("title") or "Alarma de seguridad")
+        title = str(finding.get("vulnerability_title") or finding.get("title") or "Alarma de seguridad")
         tipo = f"{self.settings.backend_alarm_type} [{sev}] - {title}"
         fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        return {
+
+        # Campos Nivel 1
+        asset_id = str(finding.get("asset_id") or "")
+        vulnerability_id = str(finding.get("vulnerability_id") or "")
+        vulnerability_title = title
+        severity = sev
+
+        # cvss_score
+        cvss_val = finding.get("cvss_score")
+        if cvss_val is None:
+            cvss_val = finding.get("cvss")
+        try:
+            cvss_score = float(cvss_val) if cvss_val is not None else None
+        except (ValueError, TypeError):
+            cvss_score = None
+
+        source = str(finding.get("source") or "InsightVM")
+
+        payload = {
             "servidor": servidor,
             "ip": ip,
             "TipoAlarma": tipo,
             "Local": self.settings.backend_local,
             "fechaalarma": fecha,
         }
+
+        if self.settings.backend_payload_level == "level1":
+            payload.update({
+                "estado": 0,
+                "asset_id": asset_id,
+                "vulnerability_id": vulnerability_id,
+                "vulnerability_title": vulnerability_title,
+                "severity": severity,
+                "cvss_score": cvss_score,
+                "source": source,
+            })
+            if "solution" in payload:
+                del payload["solution"]
+
+        return payload
 
     def _post_alarm(self, alarm_payload: dict[str, Any]) -> dict[str, Any]:
         try:

@@ -28,9 +28,20 @@ class InsightVMCollector:
             if not asset_id:
                 continue
             try:
-                asset_vuln_resp = self.client.get(f"/assets/{asset_id}/vulnerabilities")
-                asset_vulns_raw[str(asset_id)] = asset_vuln_resp
-                vuln_refs = asset_vuln_resp.get("resources", [])
+                vuln_refs = []
+                page_responses = []
+                page = 0
+                while True:
+                    resp = self.client.get(f"/assets/{asset_id}/vulnerabilities", params={"page": page, "size": page_size})
+                    page_responses.append(resp)
+                    resources = resp.get("resources", [])
+                    if not isinstance(resources, list):
+                        break
+                    vuln_refs.extend(resources)
+                    if len(resources) < page_size:
+                        break
+                    page += 1
+                asset_vulns_raw[str(asset_id)] = page_responses
             except Exception as exc:
                 log.warning("asset_id=%s vulnerabilities fetch failed: %s", asset_id, exc)
                 continue
@@ -51,17 +62,22 @@ class InsightVMCollector:
 
                 vdef = vuln_cache[vuln_id]
                 sev = normalize_severity(vdef.get("severity") or vdef.get("severityScore") or vdef.get("cvss_score"))
+                cvss_score = _extract_cvss(vdef)
+                vulnerability_title = vdef.get("title") or vdef.get("name") or "Vulnerability"
                 findings.append(
                     {
                         "asset_id": asset_id,
                         "asset_ip": _extract_asset_ip(asset),
                         "asset_hostname": asset.get("hostName") or asset.get("hostname") or asset.get("name"),
                         "vulnerability_id": vuln_id,
-                        "title": vdef.get("title") or vdef.get("name") or "Vulnerability",
+                        "vulnerability_title": vulnerability_title,
+                        "title": vulnerability_title,  # compatibilidad
                         "severity": sev,
-                        "cvss": _extract_cvss(vdef),
+                        "cvss_score": cvss_score,
+                        "cvss": cvss_score,  # compatibilidad
                         "risk_score": vdef.get("riskScore"),
                         "cves": vdef.get("cves") or [],
+                        "source": "InsightVM",
                         "raw": vdef,
                     }
                 )

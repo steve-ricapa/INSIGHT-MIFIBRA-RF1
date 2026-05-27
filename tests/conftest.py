@@ -13,6 +13,7 @@ def insightvm_test_server():
     class State:
         assets_calls = 0
         fail_assets_times = 0
+        fail_auth = False
         assets_pages = {}
         asset_vulns = {}
         vuln_defs = {}
@@ -44,6 +45,9 @@ def insightvm_test_server():
 
             if path == "/api/3/assets":
                 state.assets_calls += 1
+                if state.fail_auth:
+                    self._json({"error": "unauthorized"}, status=401)
+                    return
                 if state.assets_calls <= state.fail_assets_times:
                     self._json({"error": "temporary"}, status=500)
                     return
@@ -55,7 +59,22 @@ def insightvm_test_server():
             if path.startswith("/api/3/assets/") and path.endswith("/vulnerabilities"):
                 parts = path.split("/")
                 asset_id = parts[-2]
-                self._json({"resources": state.asset_vulns.get(asset_id, [])})
+                resources = state.asset_vulns.get(asset_id, [])
+                
+                # Paginación en pruebas
+                page_list = query.get("page")
+                size_list = query.get("size")
+                if page_list and size_list:
+                    try:
+                        page = int(page_list[0])
+                        size = int(size_list[0])
+                        start = page * size
+                        end = start + size
+                        resources = resources[start:end]
+                    except (ValueError, IndexError):
+                        pass
+
+                self._json({"resources": resources})
                 return
 
             if path.startswith("/api/3/vulnerabilities/"):
